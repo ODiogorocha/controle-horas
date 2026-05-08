@@ -1,0 +1,141 @@
+name: Build e Release
+
+on:
+  push:
+    tags:
+      - 'v*'           # Dispara quando voce criar uma tag como v1.0.0, v1.1.0 etc.
+  workflow_dispatch:   # Permite rodar manualmente pelo GitHub
+
+jobs:
+
+  # ── Job 1: Build do JAR ──────────────────────────────────────
+  build:
+    name: Compilar e gerar JAR
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar codigo do repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Cache do Gradle (acelera builds futuros)
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/*.gradle*') }}
+          restore-keys: gradle-
+
+      - name: Dar permissao ao Gradle
+        run: chmod +x gradlew
+
+      - name: Compilar e gerar JAR executavel
+        run: ./gradlew bootJar
+
+      - name: Renomear JAR para nome padrao
+        run: |
+          JAR=$(find build/libs -name "*.jar" | head -1)
+          cp "$JAR" build/libs/controle-horas.jar
+          echo "JAR gerado: $JAR"
+          ls -lh build/libs/
+
+      - name: Salvar JAR como artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: controle-horas-jar
+          path: build/libs/controle-horas.jar
+          retention-days: 7
+
+  # ── Job 2: Criar Release no GitHub ──────────────────────────
+  release:
+    name: Publicar Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Baixar codigo do repositorio
+        uses: actions/checkout@v4
+
+      - name: Baixar JAR gerado
+        uses: actions/download-artifact@v4
+        with:
+          name: controle-horas-jar
+          path: dist/
+
+      - name: Copiar scripts de instalacao
+        run: |
+          cp scripts/instalar-linux.sh    dist/
+          cp scripts/desinstalar-linux.sh dist/
+          cp scripts/instalar-windows.bat dist/
+          chmod +x dist/instalar-linux.sh
+          chmod +x dist/desinstalar-linux.sh
+          ls -lh dist/
+
+      - name: Extrair versao da tag
+        id: versao
+        run: echo "versao=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Criar Release com todos os arquivos
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.versao.outputs.versao }}
+          name: "Controle de Horas ${{ steps.versao.outputs.versao }}"
+          draft: false
+          prerelease: false
+          body: |
+            ## Sistema de Controle de Horas ${{ steps.versao.outputs.versao }}
+
+            Sistema para controle de ponto, calculo de horas trabalhadas e horas extras.
+
+            ---
+
+            ## Como instalar
+
+            ### Linux (Ubuntu, Debian, Fedora, Arch)
+
+            Abra o terminal e cole este comando:
+
+            ```bash
+            curl -sSL https://github.com/${{ github.repository }}/releases/latest/download/instalar-linux.sh | bash
+            ```
+
+            ### Windows 10 / 11
+
+            1. Baixe o arquivo **instalar-windows.bat** abaixo
+            2. Clique com o botao direito > **Executar como administrador**
+            3. Siga as instrucoes na tela
+
+            ---
+
+            ## O que ha nesta versao
+
+            - Sistema completo de controle de ponto
+            - Cadastro de funcionarios e cargos
+            - Importacao de registros via CSV
+            - Calculo automatico de horas extras
+            - Interface grafica desktop (JavaFX)
+            - API REST em localhost:8080
+
+            ---
+
+            ## Requisitos
+
+            - O instalador cuida de instalar o Java automaticamente se necessario
+            - Conexao com internet apenas na instalacao
+            - Windows 10/11 ou Linux (Ubuntu 20.04+, Fedora 36+, Arch)
+
+          files: |
+            dist/controle-horas.jar
+            dist/instalar-linux.sh
+            dist/desinstalar-linux.sh
+            dist/instalar-windows.bat
