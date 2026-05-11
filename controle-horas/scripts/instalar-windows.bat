@@ -11,7 +11,7 @@ title Instalador - Sistema de Controle de Horas
 set "APP_VERSION=1.0.1"
 
 set "GITHUB_USER=ODiogorocha"
-set "GITHUB_REPO=%GITHUB_USER%/controle-de-horas"
+set "GITHUB_REPO=%GITHUB_USER%/controle-horas"
 
 set "INSTALL_DIR=%LOCALAPPDATA%\ControleHoras"
 
@@ -79,10 +79,7 @@ echo [OK] Pasta criada.
 echo.
 echo [3/6] Baixando sistema...
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
- "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; ^
-  $wc = New-Object System.Net.WebClient; ^
-  $wc.DownloadFile('%JAR_URL%', '%JAR_PATH%')"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $wc = New-Object System.Net.WebClient; $wc.DownloadFile('%JAR_URL%', '%JAR_PATH%')"
 
 if not exist "%JAR_PATH%" (
     echo.
@@ -100,10 +97,7 @@ echo [OK] Sistema baixado.
 echo.
 echo [4/6] Baixando icone...
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
- "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; ^
-  $wc = New-Object System.Net.WebClient; ^
-  $wc.DownloadFile('%ICON_URL%', '%ICON_PATH%')"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $wc = New-Object System.Net.WebClient; $wc.DownloadFile('%ICON_URL%', '%ICON_PATH%')"
 
 if exist "%ICON_PATH%" (
     echo [OK] Icone baixado.
@@ -138,25 +132,43 @@ echo [6/6] Criando atalhos...
 set "DESKTOP=%USERPROFILE%\Desktop"
 set "STARTMENU=%APPDATA%\Microsoft\Windows\Start Menu\Programs"
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
- "$ws = New-Object -ComObject WScript.Shell; ^
-  $s = $ws.CreateShortcut('%DESKTOP%\Controle de Horas.lnk'); ^
-  $s.TargetPath = '%VBS%'; ^
-  $s.WorkingDirectory = '%INSTALL_DIR%'; ^
-  $s.Description = 'Sistema de Controle de Horas'; ^
-  $s.IconLocation = '%ICON_PATH%'; ^
-  $s.Save()"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut('%DESKTOP%\Controle de Horas.lnk'); $s.TargetPath = '%VBS%'; $s.WorkingDirectory = '%INSTALL_DIR%'; $s.Description = 'Sistema de Controle de Horas'; $s.IconLocation = '%ICON_PATH%'; $s.Save()"
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
- "$ws = New-Object -ComObject WScript.Shell; ^
-  $s = $ws.CreateShortcut('%STARTMENU%\Controle de Horas.lnk'); ^
-  $s.TargetPath = '%VBS%'; ^
-  $s.WorkingDirectory = '%INSTALL_DIR%'; ^
-  $s.Description = 'Sistema de Controle de Horas'; ^
-  $s.IconLocation = '%ICON_PATH%'; ^
-  $s.Save()"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut('%STARTMENU%\Controle de Horas.lnk'); $s.TargetPath = '%VBS%'; $s.WorkingDirectory = '%INSTALL_DIR%'; $s.Description = 'Sistema de Controle de Horas'; $s.IconLocation = '%ICON_PATH%'; $s.Save()"
 
-echo [OK] Atalhos criados.
+if exist "%DESKTOP%\Controle de Horas.lnk" (
+    echo [OK] Atalho da area de trabalho criado.
+) else (
+    echo [AVISO] Falha ao criar atalho da area de trabalho.
+)
+
+if exist "%STARTMENU%\Controle de Horas.lnk" (
+    echo [OK] Atalho do menu iniciar criado.
+) else (
+    echo [AVISO] Falha ao criar atalho do menu iniciar.
+)
+
+:: ============================================================
+:: 7. CRIA DESINSTALADOR
+:: ============================================================
+
+echo.
+echo [7/7] Criando desinstalador...
+
+set "UNINSTALL=%INSTALL_DIR%\desinstalar.bat"
+
+(
+echo @echo off
+echo chcp 65001 ^>nul 2^>^&1
+echo echo Desinstalando Sistema de Controle de Horas...
+echo del "%DESKTOP%\Controle de Horas.lnk" 2^>nul
+echo del "%STARTMENU%\Controle de Horas.lnk" 2^>nul
+echo rmdir /s /q "%INSTALL_DIR%"
+echo echo Desinstalado com sucesso!
+echo pause
+) > "%UNINSTALL%"
+
+echo [OK] Desinstalador criado.
 
 :: ============================================================
 :: FINAL
