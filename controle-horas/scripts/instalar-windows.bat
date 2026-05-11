@@ -4,233 +4,237 @@ chcp 65001 >nul 2>&1
 
 title Instalador - Sistema de Controle de Horas
 
+:: ============================================================
+:: CONFIGURACOES
+:: ============================================================
+
 set "APP_VERSION=1.0.0"
+
+set "GITHUB_USER=ODiogorocha"
+set "GITHUB_REPO=%GITHUB_USER%/controle-horas"
+
 set "INSTALL_DIR=%LOCALAPPDATA%\ControleHoras"
-set "GITHUB_REPO=SEU_USUARIO/controle-horas"
+
 set "JAR_URL=https://github.com/%GITHUB_REPO%/releases/latest/download/controle-horas.jar"
+set "ICON_URL=https://github.com/%GITHUB_REPO%/releases/latest/download/controle-horas.ico"
+
+set "JAR_PATH=%INSTALL_DIR%\controle-horas.jar"
+set "ICON_PATH=%INSTALL_DIR%\controle-horas.ico"
 
 echo.
-echo =============================================
-echo    Sistema de Controle de Horas v%APP_VERSION%
-echo    Instalador para Windows 10 e 11
-echo =============================================
+echo ==================================================
+echo       Sistema de Controle de Horas
+echo ==================================================
 echo.
 
-:: ── 1. Procura o Java instalado no sistema ───────────────────
-echo [1/6] Verificando Java instalado...
+:: ============================================================
+:: 1. VERIFICA JAVA
+:: ============================================================
+
+echo [1/6] Verificando Java...
 
 set "JAVA_EXE="
 
-:: Tenta encontrar pelo PATH
 where javaw >nul 2>&1
+
 if %ERRORLEVEL% EQU 0 (
     for /f "tokens=*" %%i in ('where javaw') do (
-        if not defined JAVA_EXE set "JAVA_EXE=%%i"
-    )
-)
-
-:: Procura nas pastas padrao de instalacao do Java
-if not defined JAVA_EXE (
-    for /d %%i in (
-        "%ProgramFiles%\Eclipse Adoptium\jre-21*"
-        "%ProgramFiles%\Eclipse Adoptium\jdk-21*"
-        "%ProgramFiles%\Eclipse Adoptium\jre-17*"
-        "%ProgramFiles%\Eclipse Adoptium\jdk-17*"
-        "%ProgramFiles%\Java\jre*"
-        "%ProgramFiles%\Java\jdk*"
-        "%ProgramFiles%\Microsoft\jdk-21*"
-        "%ProgramFiles%\Microsoft\jdk-17*"
-        "%ProgramFiles%\Amazon Corretto\jre21*"
-        "%ProgramFiles%\Amazon Corretto\jdk21*"
-        "%ProgramFiles(x86)%\Java\jre*"
-    ) do (
-        if exist "%%i\bin\javaw.exe" (
-            if not defined JAVA_EXE set "JAVA_EXE=%%i\bin\javaw.exe"
+        if not defined JAVA_EXE (
+            set "JAVA_EXE=%%i"
         )
     )
 )
 
-:: Procura pelo registro do Windows
+:: Procura em diretorios comuns
 if not defined JAVA_EXE (
-    for %%k in (
-        "HKLM\SOFTWARE\Eclipse Adoptium\JRE\21"
-        "HKLM\SOFTWARE\Eclipse Adoptium\JDK\21"
-        "HKLM\SOFTWARE\JavaSoft\Java Runtime Environment"
-        "HKLM\SOFTWARE\JavaSoft\JDK"
+    for /d %%i in (
+        "%ProgramFiles%\Eclipse Adoptium\jdk-21*"
+        "%ProgramFiles%\Eclipse Adoptium\jre-21*"
+        "%ProgramFiles%\Java\jdk*"
+        "%ProgramFiles%\Java\jre*"
     ) do (
-        for /f "tokens=2*" %%a in (
-            'reg query "%%~k" /v JavaHome 2^>nul ^| findstr JavaHome'
-        ) do (
-            if exist "%%b\bin\javaw.exe" (
-                if not defined JAVA_EXE set "JAVA_EXE=%%b\bin\javaw.exe"
+        if exist "%%i\bin\javaw.exe" (
+            if not defined JAVA_EXE (
+                set "JAVA_EXE=%%i\bin\javaw.exe"
             )
         )
     )
 )
 
-if defined JAVA_EXE (
-    echo [OK]   Java encontrado em: !JAVA_EXE!
-    goto :java_encontrado
-)
-
-:: Java nao encontrado - instala automaticamente
-echo [AVISO] Java nao encontrado. Instalando automaticamente...
-echo         Aguarde, isso pode levar alguns minutos...
-echo.
-
-set "JAVA_INSTALLER=%TEMP%\java21-installer.msi"
-set "JAVA_DL=https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.5+11/OpenJDK21U-jre_x64_windows_hotspot_21.0.5_11.msi"
-
-echo [INFO] Baixando Java 21...
-powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $wc = New-Object System.Net.WebClient; $wc.DownloadFile('%JAVA_DL%', '%JAVA_INSTALLER%')"
-
-if not exist "%JAVA_INSTALLER%" (
-    echo.
-    echo [ERRO] Nao foi possivel baixar o Java automaticamente.
-    echo.
-    echo        Instale manualmente:
-    echo        1. Acesse: https://adoptium.net
-    echo        2. Clique em "Latest LTS Release"
-    echo        3. Escolha Windows x64 Installer
-    echo        4. Execute o instalador baixado
-    echo        5. Depois execute este instalador novamente
-    echo.
-    pause
-    exit /b 1
-)
-
-echo [INFO] Instalando Java 21...
-msiexec /i "%JAVA_INSTALLER%" /quiet /norestart
-timeout /t 5 /nobreak >nul
-del "%JAVA_INSTALLER%" >nul 2>&1
-
-:: Procura o Java recem instalado
-for /d %%i in (
-    "%ProgramFiles%\Eclipse Adoptium\jre-21*"
-    "%ProgramFiles%\Eclipse Adoptium\jdk-21*"
-) do (
-    if exist "%%i\bin\javaw.exe" (
-        if not defined JAVA_EXE set "JAVA_EXE=%%i\bin\javaw.exe"
-    )
-)
-
 if not defined JAVA_EXE (
-    echo [ERRO] Instalacao do Java falhou.
-    echo        Instale manualmente em https://adoptium.net e tente novamente.
+    echo.
+    echo [ERRO] Java nao encontrado.
+    echo.
+    echo Instale Java 21:
+    echo https://adoptium.net
+    echo.
     pause
     exit /b 1
 )
 
-echo [OK]   Java instalado: !JAVA_EXE!
+echo [OK] Java encontrado:
+echo      !JAVA_EXE!
 
-:java_encontrado
+:: ============================================================
+:: 2. CRIA PASTA
+:: ============================================================
 
-:: ── 2. Cria pasta de instalacao ──────────────────────────────
+echo.
 echo [2/6] Criando pasta de instalacao...
-if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
-echo [OK]   %INSTALL_DIR%
 
-:: ── 3. Baixa o JAR ───────────────────────────────────────────
-echo [3/6] Baixando o sistema...
-set "JAR_PATH=%INSTALL_DIR%\controle-horas.jar"
+if not exist "%INSTALL_DIR%" (
+    mkdir "%INSTALL_DIR%"
+)
 
-if exist "%JAR_PATH%" del "%JAR_PATH%"
+echo [OK] Pasta criada:
+echo      %INSTALL_DIR%
 
-powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $wc = New-Object System.Net.WebClient; $wc.DownloadFile('%JAR_URL%', '%JAR_PATH%')"
+:: ============================================================
+:: 3. BAIXA JAR
+:: ============================================================
+
+echo.
+echo [3/6] Baixando sistema...
+
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+ "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; ^
+  $wc = New-Object System.Net.WebClient; ^
+  $wc.DownloadFile('%JAR_URL%', '%JAR_PATH%')"
 
 if not exist "%JAR_PATH%" (
-    echo [ERRO] Falha ao baixar. Verifique sua internet e tente novamente.
+    echo.
+    echo [ERRO] Falha ao baixar o sistema.
     pause
     exit /b 1
 )
-echo [OK]   Sistema baixado.
 
-:: ── 4. Cria o launcher ───────────────────────────────────────
-echo [4/6] Criando iniciador...
-set "LAUNCHER=%INSTALL_DIR%\iniciar.bat"
+for %%A in ("%JAR_PATH%") do set JAR_SIZE=%%~zA
+
+if %JAR_SIZE% LSS 1000 (
+    echo.
+    echo [ERRO] JAR invalido.
+    del "%JAR_PATH%"
+    pause
+    exit /b 1
+)
+
+echo [OK] Sistema baixado.
+
+:: ============================================================
+:: 4. BAIXA ICONE
+:: ============================================================
+
+echo.
+echo [4/6] Baixando icone...
+
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+ "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; ^
+  $wc = New-Object System.Net.WebClient; ^
+  $wc.DownloadFile('%ICON_URL%', '%ICON_PATH%')"
+
+if exist "%ICON_PATH%" (
+    echo [OK] Icone baixado.
+) else (
+    echo [AVISO] Icone nao encontrado.
+)
+
+:: ============================================================
+:: 5. CRIA LAUNCHER VBS
+:: ============================================================
+
+echo.
+echo [5/6] Criando launcher...
+
+set "VBS=%INSTALL_DIR%\iniciar.vbs"
 
 (
-    echo @echo off
-    echo cd /d "%INSTALL_DIR%"
-    echo start "" "!JAVA_EXE!" -jar "%JAR_PATH%"
-) > "%LAUNCHER%"
+echo Set WshShell = CreateObject("WScript.Shell"^)
+echo WshShell.Run chr(34^) ^& "!JAVA_EXE!" ^& chr(34^) ^& " -jar " ^& chr(34^) ^& "%JAR_PATH%" ^& chr(34^), 0
+echo Set WshShell = Nothing
+) > "%VBS%"
 
-:: Salva o caminho do Java para uso futuro
-echo !JAVA_EXE!> "%INSTALL_DIR%\java_path.txt"
+echo [OK] Launcher criado.
 
-echo [OK]   Iniciador criado.
+:: ============================================================
+:: 6. CRIA ATALHOS
+:: ============================================================
 
-:: ── 5. Cria atalhos ──────────────────────────────────────────
-echo [5/6] Criando atalhos...
+echo.
+echo [6/6] Criando atalhos...
 
 set "DESKTOP=%USERPROFILE%\Desktop"
 set "STARTMENU=%APPDATA%\Microsoft\Windows\Start Menu\Programs"
 
-:: Cria atalho na area de trabalho
-powershell -NoProfile -Command "$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut('%DESKTOP%\Controle de Horas.lnk'); $s.TargetPath = '!JAVA_EXE!'; $s.Arguments = '-jar \"%JAR_PATH%\"'; $s.WorkingDirectory = '%INSTALL_DIR%'; $s.Description = 'Sistema de Controle de Horas e Ponto'; $s.WindowStyle = 1; $s.Save()"
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+ "$ws = New-Object -ComObject WScript.Shell; ^
+  $s = $ws.CreateShortcut('%DESKTOP%\Controle de Horas.lnk'); ^
+  $s.TargetPath = '%VBS%'; ^
+  $s.WorkingDirectory = '%INSTALL_DIR%'; ^
+  $s.Description = 'Sistema de Controle de Horas'; ^
+  $s.IconLocation = '%ICON_PATH%'; ^
+  $s.Save()"
 
-:: Cria atalho no menu Iniciar
-powershell -NoProfile -Command "$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut('%STARTMENU%\Controle de Horas.lnk'); $s.TargetPath = '!JAVA_EXE!'; $s.Arguments = '-jar \"%JAR_PATH%\"'; $s.WorkingDirectory = '%INSTALL_DIR%'; $s.Description = 'Sistema de Controle de Horas e Ponto'; $s.WindowStyle = 1; $s.Save()"
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+ "$ws = New-Object -ComObject WScript.Shell; ^
+  $s = $ws.CreateShortcut('%STARTMENU%\Controle de Horas.lnk'); ^
+  $s.TargetPath = '%VBS%'; ^
+  $s.WorkingDirectory = '%INSTALL_DIR%'; ^
+  $s.Description = 'Sistema de Controle de Horas'; ^
+  $s.IconLocation = '%ICON_PATH%'; ^
+  $s.Save()"
 
-if exist "%DESKTOP%\Controle de Horas.lnk" (
-    echo [OK]   Atalho criado na area de trabalho.
-) else (
-    echo [AVISO] Atalho nao criado. Use o arquivo: %LAUNCHER%
-)
+echo [OK] Atalhos criados.
 
-if exist "%STARTMENU%\Controle de Horas.lnk" (
-    echo [OK]   Atalho criado no menu Iniciar.
-)
+:: ============================================================
+:: DESINSTALADOR
+:: ============================================================
 
-:: ── 6. Registra desinstalador ────────────────────────────────
-echo [6/6] Registrando desinstalador...
+set "UNINSTALL=%INSTALL_DIR%\desinstalar.bat"
 
-set "UNINSTALL_BAT=%INSTALL_DIR%\desinstalar.bat"
 (
-    echo @echo off
-    echo chcp 65001 ^>nul 2^>^&1
-    echo echo Desinstalando Sistema de Controle de Horas...
-    echo set /p "ok=Tem certeza? [s/N]: "
-    echo if /i not "%%ok%%"=="s" exit /b 0
-    echo del "%DESKTOP%\Controle de Horas.lnk" 2^>nul
-    echo del "%STARTMENU%\Controle de Horas.lnk" 2^>nul
-    echo reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\ControleHoras" /f 2^>nul
-    echo rmdir /s /q "%INSTALL_DIR%"
-    echo echo Desinstalado com sucesso!
-    echo pause
-) > "%UNINSTALL_BAT%"
+echo @echo off
+echo echo Desinstalando...
+echo del "%DESKTOP%\Controle de Horas.lnk" 2^>nul
+echo del "%STARTMENU%\Controle de Horas.lnk" 2^>nul
+echo rmdir /s /q "%INSTALL_DIR%"
+echo echo Desinstalado com sucesso.
+echo pause
+) > "%UNINSTALL%"
+
+:: ============================================================
+:: REGISTRA DESINSTALADOR
+:: ============================================================
 
 set "REG=HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\ControleHoras"
-reg add "%REG%" /v "DisplayName"     /t REG_SZ    /d "Sistema de Controle de Horas" /f >nul
-reg add "%REG%" /v "DisplayVersion"  /t REG_SZ    /d "%APP_VERSION%"                /f >nul
-reg add "%REG%" /v "Publisher"       /t REG_SZ    /d "github.com/%GITHUB_REPO%"     /f >nul
-reg add "%REG%" /v "InstallLocation" /t REG_SZ    /d "%INSTALL_DIR%"                /f >nul
-reg add "%REG%" /v "UninstallString" /t REG_SZ    /d "%UNINSTALL_BAT%"              /f >nul
-reg add "%REG%" /v "NoModify"        /t REG_DWORD /d 1                              /f >nul
 
-echo [OK]   Registrado em Configuracoes > Aplicativos.
+reg add "%REG%" /v "DisplayName" /t REG_SZ /d "Controle de Horas" /f >nul
+reg add "%REG%" /v "DisplayVersion" /t REG_SZ /d "%APP_VERSION%" /f >nul
+reg add "%REG%" /v "Publisher" /t REG_SZ /d "ODiogorocha" /f >nul
+reg add "%REG%" /v "InstallLocation" /t REG_SZ /d "%INSTALL_DIR%" /f >nul
+reg add "%REG%" /v "UninstallString" /t REG_SZ /d "%UNINSTALL%" /f >nul
 
-:: ── Conclusao ─────────────────────────────────────────────────
+:: ============================================================
+:: FINAL
+:: ============================================================
+
 echo.
-echo =============================================
-echo    Instalacao concluida com sucesso!
-echo =============================================
-echo.
-echo   Java: !JAVA_EXE!
-echo.
-echo   Como abrir:
-echo   - Icone "Controle de Horas" na area de trabalho
-echo   - Menu Iniciar ^> Controle de Horas
-echo   - Direto: %LAUNCHER%
-echo.
-echo   Para desinstalar:
-echo   Configuracoes ^> Aplicativos ^> Controle de Horas
+echo ==================================================
+echo           Instalacao concluida!
+echo ==================================================
 echo.
 
-set /p "abrir=Deseja abrir o sistema agora? [s/N]: "
+echo Area de trabalho:
+echo   Controle de Horas
+
+echo.
+echo Menu iniciar:
+echo   Controle de Horas
+
+echo.
+set /p "abrir=Abrir agora? [s/N]: "
+
 if /i "%abrir%"=="s" (
-    start "" "!JAVA_EXE!" -jar "%JAR_PATH%"
-    echo [OK] Abrindo...
+    start "" "%VBS%"
 )
 
 echo.
