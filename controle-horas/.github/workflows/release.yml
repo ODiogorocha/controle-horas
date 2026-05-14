@@ -4,23 +4,19 @@ on:
   push:
     tags:
       - 'v*'
-
   workflow_dispatch:
 
 jobs:
 
   build-jar:
-
     name: Gerar JAR
-
     runs-on: ubuntu-latest
 
     steps:
-
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Java
+      - name: Configurar Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -30,64 +26,78 @@ jobs:
         working-directory: controle-horas
         run: chmod +x gradlew
 
-      - name: Build Projeto
+      - name: Build do projeto
         working-directory: controle-horas
-        run: ./gradlew clean build
+        run: ./gradlew clean bootJar
 
-      - name: Gerar JAR
-        working-directory: controle-horas
-        run: ./gradlew bootJar
-
-      - name: Salvar JAR
+      - name: Upload JAR
         uses: actions/upload-artifact@v4
         with:
           name: jar-file
           path: controle-horas/build/libs/controle-horas.jar
 
   build-exe:
-
     name: Gerar EXE Windows
-
     runs-on: windows-latest
-
     needs: build-jar
 
     steps:
-
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Java
+      - name: Configurar Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
 
-      - name: Gerar EXE
-        working-directory: controle-horas
+      - name: Download JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: jar-file
+          path: controle-horas/build/libs/
+
+      - name: Criar pasta installer
         shell: cmd
-        run: gradlew.bat jpackage
+        run: mkdir controle-horas\build\installer
+
+      - name: Gerar EXE com jpackage
+        shell: cmd
+        run: |
+          jpackage ^
+          --input controle-horas\build\libs ^
+          --main-jar controle-horas.jar ^
+          --main-class com.empresa.controle_horas.ControleHorasApplication ^
+          --name "Controle de Horas" ^
+          --app-version "1.5.0" ^
+          --vendor "ODiogorocha" ^
+          --dest controle-horas\build\installer ^
+          --type exe ^
+          --win-dir-chooser ^
+          --win-menu ^
+          --win-shortcut
 
       - name: Listar arquivos gerados
         shell: powershell
         run: |
-          Get-ChildItem controle-horas\build\jpackage
+          Get-ChildItem controle-horas\build\installer
 
-      - name: Salvar EXE
+      - name: Renomear instalador
+        shell: powershell
+        run: |
+          $exe = Get-ChildItem "controle-horas\build\installer\*.exe" | Select-Object -First 1
+          Copy-Item $exe.FullName "controle-horas\build\installer\ControleDeHoras-Installer.exe"
+
+      - name: Upload EXE
         uses: actions/upload-artifact@v4
         with:
           name: exe-installer
-          path: controle-horas/build/jpackage/*.exe
+          path: controle-horas/build/installer/ControleDeHoras-Installer.exe
 
   release:
-
     name: Publicar Release
-
-    needs:
-      - build-jar
-      - build-exe
-
     runs-on: ubuntu-latest
+    needs: [build-jar, build-exe]
 
     if: startsWith(github.ref, 'refs/tags/')
 
@@ -95,17 +105,16 @@ jobs:
       contents: write
 
     steps:
-
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Baixar JAR
+      - name: Download JAR
         uses: actions/download-artifact@v4
         with:
           name: jar-file
           path: dist/
 
-      - name: Baixar EXE
+      - name: Download EXE
         uses: actions/download-artifact@v4
         with:
           name: exe-installer
@@ -119,55 +128,36 @@ jobs:
           chmod +x dist/instalar-linux.sh
           chmod +x dist/desinstalar-linux.sh
 
-          ls -lh dist/
+      - name: Verificar arquivos
+        run: ls -lh dist/
 
       - name: Criar Release
         uses: softprops/action-gh-release@v1
         with:
-
           name: "Controle de Horas ${{ github.ref_name }}"
-
           body: |
+            ## Sistema Controle de Horas
 
-            ## Controle de Horas
-
-            Sistema desktop para gerenciamento de jornada, banco de horas e escalas.
-
-            ---
-
-            ## Instalacao Windows
-
+            ### Windows
             1. Baixe o arquivo:
-               `ControleHoras.exe`
+               `ControleDeHoras-Installer.exe`
 
             2. Execute o instalador
 
-            3. Caso o Windows Defender mostre aviso:
-               - Clique em "Mais informacoes"
+            3. Caso o Windows Defender exiba aviso:
+               - Clique em "Mais informações"
                - Depois em "Executar assim mesmo"
 
-            4. O sistema sera instalado automaticamente
+            ### Linux
 
-            ---
-
-            ## Instalacao Linux
-
-            Execute:
+            Instalação automática:
 
             ```bash
             curl -sSL https://github.com/ODiogorocha/controle-horas/releases/latest/download/instalar-linux.sh | bash
             ```
 
-            ---
-
-            ## Requisitos
-
-            - Windows 10/11
-            - Linux Ubuntu/Debian
-            - Java incluso no instalador Windows
-
           files: |
-            dist/*.exe
-            dist/*.jar
+            dist/ControleDeHoras-Installer.exe
+            dist/controle-horas.jar
             dist/instalar-linux.sh
             dist/desinstalar-linux.sh
