@@ -3,7 +3,6 @@ plugins {
 	id 'org.springframework.boot' version '3.2.0'
 	id 'io.spring.dependency-management' version '1.1.4'
 	id 'org.openjfx.javafxplugin' version '0.1.0'
-	id 'edu.sc.seis.launch4j' version '3.0.5'
 }
 
 group = 'com.empresa'
@@ -42,25 +41,3 @@ dependencies {
 bootJar {
 	archiveFileName = 'controle-horas.jar'
 }
-
-// Configuracao do launch4j para gerar o .exe
-launch4j {
-	mainClassName = 'com.empresa.controle_horas.ControleHorasApplication'
-	outfile = 'ControleDeHoras.exe'
-	jarTask = tasks.bootJar
-
-	icon = "${projectDir}/scripts/controle-horas.ico"
-
-	jreMinVersion = '21'
-
-	bundledJrePath = '%JAVA_HOME%'
-
-	windowTitle = 'Controle de Horas'
-
-	companyName = 'ODiogorocha'
-
-	productName = 'Controle de Horas'
-}
-
-// O JAR precisa existir antes de gerar o EXE
-createExe.dependsOn bootJar

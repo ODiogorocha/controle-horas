@@ -1,0 +1,204 @@
+name: Build e Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+
+  # ── Gera o JAR no Linux ──────────────────────────────────────
+  build-jar:
+    name: Gerar JAR
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Cache Gradle
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/controle-horas/*.gradle*') }}
+          restore-keys: gradle-
+
+      - name: Permissao ao Gradle
+        working-directory: controle-horas
+        run: chmod +x gradlew
+
+      - name: Gerar JAR
+        working-directory: controle-horas
+        run: ./gradlew bootJar
+
+      - name: Listar JAR gerado
+        working-directory: controle-horas
+        run: ls -lh build/libs/
+
+      - name: Salvar JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-file
+          path: controle-horas/build/libs/controle-horas.jar
+
+  # ── Gera o EXE no Windows com jpackage ───────────────────────
+  build-exe:
+    name: Gerar EXE para Windows
+    runs-on: windows-latest
+    needs: build-jar
+
+    steps:
+      - name: Baixar codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21 com JDK completo
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Baixar JAR gerado
+        uses: actions/download-artifact@v4
+        with:
+          name: jar-file
+          path: controle-horas/build/libs/
+
+      - name: Verificar JAR e Java
+        shell: cmd
+        run: |
+          echo === JAR ===
+          dir controle-horas\build\libs\
+          echo === Java ===
+          java -version
+          echo === jpackage ===
+          jpackage --version
+
+      - name: Criar pasta de saida
+        shell: cmd
+        run: mkdir controle-horas\build\installer
+
+      - name: Gerar instalador EXE com jpackage
+        shell: cmd
+        run: |
+          jpackage ^
+            --input controle-horas\build\libs ^
+            --main-jar controle-horas.jar ^
+            --main-class com.empresa.controle_horas.ControleHorasApplication ^
+            --name "Controle de Horas" ^
+            --app-version "1.0.0" ^
+            --vendor "ODiogorocha" ^
+            --description "Sistema de Controle de Ponto e Horas Extras" ^
+            --dest controle-horas\build\installer ^
+            --type exe ^
+            --win-dir-chooser ^
+            --win-menu ^
+            --win-shortcut ^
+            --win-shortcut-prompt ^
+            --java-options "-Xms256m" ^
+            --java-options "-Xmx512m" ^
+            --java-options "-Dfile.encoding=UTF-8"
+
+      - name: Listar EXE gerado
+        shell: cmd
+        run: dir controle-horas\build\installer\
+
+      - name: Renomear EXE para nome padrao
+        shell: powershell
+        run: |
+          $exe = Get-ChildItem "controle-horas\build\installer\*.exe" | Select-Object -First 1
+          Write-Host "EXE encontrado: $($exe.Name)"
+          Copy-Item $exe.FullName "controle-horas\build\installer\ControleDeHoras-Installer.exe"
+
+      - name: Salvar EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: exe-installer
+          path: controle-horas/build/installer/ControleDeHoras-Installer.exe
+
+  # ── Publica a Release ─────────────────────────────────────────
+  release:
+    name: Publicar Release
+    needs: [build-jar, build-exe]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Baixar codigo
+        uses: actions/checkout@v4
+
+      - name: Baixar JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: jar-file
+          path: dist/
+
+      - name: Baixar EXE
+        uses: actions/download-artifact@v4
+        with:
+          name: exe-installer
+          path: dist/
+
+      - name: Copiar instalador Linux
+        run: |
+          cp controle-horas/scripts/instalar-linux.sh    dist/
+          cp controle-horas/scripts/desinstalar-linux.sh dist/
+          chmod +x dist/instalar-linux.sh
+          chmod +x dist/desinstalar-linux.sh
+          echo "=== Arquivos na release ==="
+          ls -lh dist/
+
+      - name: Extrair versao
+        id: versao
+        run: echo "versao=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Criar Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.versao.outputs.versao }}
+          name: "Controle de Horas ${{ steps.versao.outputs.versao }}"
+          body: |
+            ## Sistema de Controle de Horas ${{ steps.versao.outputs.versao }}
+
+            ---
+
+            ## Como instalar
+
+            ### Windows 10 / 11
+            1. Baixe o arquivo **ControleDeHoras-Installer.exe** abaixo
+            2. Clique duas vezes para instalar
+            3. Se aparecer aviso do Windows Defender clique em **"Mais informacoes"** e depois **"Executar assim mesmo"**
+            4. O Java ja vem embutido no instalador, nao precisa instalar nada separado
+            5. Apos instalar, abra pelo Menu Iniciar ou pelo atalho na area de trabalho
+
+            ### Linux (Ubuntu, Debian, Fedora, Arch)
+            ```bash
+            curl -sSL https://github.com/ODiogorocha/controle-horas/releases/latest/download/instalar-linux.sh | bash
+            ```
+
+            ---
+
+            ## Funcionalidades
+            - Cadastro de funcionarios e cargos
+            - Escalas de trabalho (Segunda a Sexta, 12x36, 6x2 e outras)
+            - Importacao de registros de ponto via CSV
+            - Calculo de horas trabalhadas e horas extras
+            - Banco de horas com folgas remuneradas (proporcao 1:1)
+            - Interface grafica desktop profissional
+
+          files: |
+            dist/ControleDeHoras-Installer.exe
+            dist/controle-horas.jar
+            dist/instalar-linux.sh
+            dist/desinstalar-linux.sh
