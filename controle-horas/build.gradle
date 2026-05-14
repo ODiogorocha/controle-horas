@@ -1,8 +1,13 @@
 plugins {
 	id 'java'
+	id 'application'
+
 	id 'org.springframework.boot' version '3.2.0'
 	id 'io.spring.dependency-management' version '1.1.4'
+
 	id 'org.openjfx.javafxplugin' version '0.1.0'
+
+	id 'org.beryx.jlink' version '3.0.1'
 }
 
 group = 'com.empresa'
@@ -13,6 +18,7 @@ java {
 }
 
 configurations {
+
 	compileOnly {
 		extendsFrom annotationProcessor
 	}
@@ -22,22 +28,89 @@ repositories {
 	mavenCentral()
 }
 
+application {
+
+	// Classe principal JavaFX
+	mainClass = 'com.empresa.controle_horas.ui.MainApp'
+}
+
 javafx {
+
 	version = '21'
-	modules = ['javafx.controls', 'javafx.fxml']
+
+	modules = [
+			'javafx.controls',
+			'javafx.fxml'
+	]
 }
 
 dependencies {
+
 	implementation 'org.springframework.boot:spring-boot-starter-web'
+
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
 	runtimeOnly 'com.h2database:h2'
-	compileOnly 'org.projectlombok:lombok'
-	annotationProcessor 'org.projectlombok:lombok'
+
 	implementation 'com.opencsv:opencsv:5.8'
+
+	compileOnly 'org.projectlombok:lombok'
+
+	annotationProcessor 'org.projectlombok:lombok'
+
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 
-// Gera o JAR com todas as dependencias dentro
+tasks.named('test') {
+
+	useJUnitPlatform()
+}
+
+// Gera JAR executavel
 bootJar {
+
 	archiveFileName = 'controle-horas.jar'
+}
+
+// Configuracao JavaFX + EXE
+jlink {
+
+	options = [
+
+			'--strip-debug',
+
+			'--compress', '2',
+
+			'--no-header-files',
+
+			'--no-man-pages'
+	]
+
+	launcher {
+
+		name = 'ControleHoras'
+	}
+
+	jpackage {
+
+		installerType = 'exe'
+
+		imageName = 'ControleHoras'
+
+		installerName = 'ControleHoras'
+
+		appVersion = '1.0.0'
+
+		vendor = 'Empresa'
+
+		if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
+
+			installerOptions = [
+
+					'--win-shortcut',
+
+					'--win-menu'
+			]
+		}
+	}
 }
