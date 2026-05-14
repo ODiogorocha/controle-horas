@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+
   workflow_dispatch:
 
 jobs:
@@ -13,10 +14,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configurar Java 21
+      - name: Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -26,7 +28,7 @@ jobs:
         working-directory: controle-horas
         run: chmod +x gradlew
 
-      - name: Build do projeto
+      - name: Build JAR
         working-directory: controle-horas
         run: ./gradlew clean bootJar
 
@@ -42,10 +44,11 @@ jobs:
     needs: build-jar
 
     steps:
+
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configurar Java 21
+      - name: Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -61,32 +64,31 @@ jobs:
         shell: cmd
         run: mkdir controle-horas\build\installer
 
-      - name: Gerar EXE com jpackage
+      - name: Verificar arquivos
+        shell: cmd
+        run: dir controle-horas\build\libs
+
+      - name: Gerar EXE
         shell: cmd
         run: |
           jpackage ^
-          --input controle-horas\build\libs ^
-          --main-jar controle-horas.jar ^
-          --main-class com.empresa.controle_horas.ControleHorasApplication ^
-          --name "Controle de Horas" ^
-          --app-version "1.5.0" ^
-          --vendor "ODiogorocha" ^
-          --dest controle-horas\build\installer ^
-          --type exe ^
-          --win-dir-chooser ^
-          --win-menu ^
-          --win-shortcut
-
-      - name: Listar arquivos gerados
-        shell: powershell
-        run: |
-          Get-ChildItem controle-horas\build\installer
+            --type exe ^
+            --input controle-horas\build\libs ^
+            --dest controle-horas\build\installer ^
+            --name "ControleDeHoras" ^
+            --main-jar controle-horas.jar ^
+            --main-class com.empresa.controle_horas.ControleHorasApplication ^
+            --app-version 1.5.0 ^
+            --vendor "ODiogorocha" ^
+            --win-menu ^
+            --win-shortcut ^
+            --win-dir-chooser
 
       - name: Renomear instalador
         shell: powershell
         run: |
-          $exe = Get-ChildItem "controle-horas\build\installer\*.exe" | Select-Object -First 1
-          Copy-Item $exe.FullName "controle-horas\build\installer\ControleDeHoras-Installer.exe"
+          $arquivo = Get-ChildItem "controle-horas\build\installer\*.exe" | Select-Object -First 1
+          Copy-Item $arquivo.FullName "controle-horas\build\installer\ControleDeHoras-Installer.exe"
 
       - name: Upload EXE
         uses: actions/upload-artifact@v4
@@ -97,14 +99,16 @@ jobs:
   release:
     name: Publicar Release
     runs-on: ubuntu-latest
-    needs: [build-jar, build-exe]
 
-    if: startsWith(github.ref, 'refs/tags/')
+    needs:
+      - build-jar
+      - build-exe
 
     permissions:
       contents: write
 
     steps:
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -125,39 +129,32 @@ jobs:
           cp controle-horas/scripts/instalar-linux.sh dist/
           cp controle-horas/scripts/desinstalar-linux.sh dist/
 
-          chmod +x dist/instalar-linux.sh
-          chmod +x dist/desinstalar-linux.sh
+      - name: Verificar arquivos finais
+        run: ls -lah dist/
 
-      - name: Verificar arquivos
-        run: ls -lh dist/
-
-      - name: Criar Release
+      - name: Criar Release GitHub
         uses: softprops/action-gh-release@v1
         with:
-          name: "Controle de Horas ${{ github.ref_name }}"
+          name: Controle de Horas ${{ github.ref_name }}
+
           body: |
-            ## Sistema Controle de Horas
+            ## Controle de Horas
+
+            Sistema desktop para controle de ponto, banco de horas e escalas automáticas.
 
             ### Windows
-            1. Baixe o arquivo:
-               `ControleDeHoras-Installer.exe`
-
-            2. Execute o instalador
-
-            3. Caso o Windows Defender exiba aviso:
-               - Clique em "Mais informações"
-               - Depois em "Executar assim mesmo"
+            Baixe:
+            - ControleDeHoras-Installer.exe
 
             ### Linux
-
-            Instalação automática:
+            Execute:
 
             ```bash
-            curl -sSL https://github.com/ODiogorocha/controle-horas/releases/latest/download/instalar-linux.sh | bash
+            curl -fsSL https://github.com/ODiogorocha/controle-de-horas/releases/latest/download/instalar-linux.sh | bash
             ```
 
           files: |
-            dist/ControleDeHoras-Installer.exe
             dist/controle-horas.jar
+            dist/ControleDeHoras-Installer.exe
             dist/instalar-linux.sh
             dist/desinstalar-linux.sh

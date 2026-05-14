@@ -11,7 +11,7 @@ Sistema desktop para controle de ponto de funcionarios, calculo de horas trabalh
 Abra o terminal e cole este unico comando:
 
 ```bash
-curl -sSL https://github.com/ODiogorocha/controle-horas/releases/latest/download/instalar-linux.sh | bash
+curl -fsSL https://github.com/ODiogorocha/controle-de-horas/releases/latest/download/instalar-linux.sh | bash
 ```
 
 O instalador vai:

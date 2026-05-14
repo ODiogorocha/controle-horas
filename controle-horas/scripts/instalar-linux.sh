@@ -1,174 +1,178 @@
 #!/bin/bash
 
 # =============================================================
-# INSTALADOR / ATUALIZADOR - CONTROLE DE HORAS
+# INSTALADOR - CONTROLE DE HORAS
 # =============================================================
 
 set -e
 
-APP_VERSION="1.5.1"
+APP_NAME="Controle de Horas"
+APP_VERSION="1.5.0"
 
 GITHUB_USER="ODiogorocha"
-GITHUB_REPO="$GITHUB_USER/controle-de-horas"
+GITHUB_REPO="controle-de-horas"
+
+BASE_URL="https://github.com/$GITHUB_USER/$GITHUB_REPO/releases/latest/download"
 
 INSTALL_DIR="$HOME/.local/share/controle-horas"
 BIN_DIR="$HOME/.local/bin"
 DESKTOP_DIR="$HOME/.local/share/applications"
 
-JAR_URL="https://github.com/$GITHUB_REPO/releases/latest/download/controle-horas.jar"
-ICON_URL="https://github.com/$GITHUB_REPO/releases/latest/download/controle-horas.png"
+JAR_URL="$BASE_URL/controle-horas.jar"
+ICON_URL="$BASE_URL/controle-horas.png"
 
 JAR_LOCAL="$INSTALL_DIR/controle-horas.jar"
 ICON_LOCAL="$INSTALL_DIR/controle-horas.png"
 
-PID_FILE="$INSTALL_DIR/app.pid"
+# =============================================================
+# CORES
+# =============================================================
+
+VERDE='\033[0;32m'
+AZUL='\033[0;34m'
+VERMELHO='\033[0;31m'
+AMARELO='\033[1;33m'
+RESET='\033[0m'
+NEGRITO='\033[1m'
+
+clear
 
 echo ""
-echo "=================================================="
-echo "      Sistema de Controle de Horas"
-echo "=================================================="
-echo ""
-echo "Versao: $APP_VERSION"
+echo -e "${AZUL}${NEGRITO}====================================================${RESET}"
+echo -e "${AZUL}${NEGRITO}         SISTEMA DE CONTROLE DE HORAS               ${RESET}"
+echo -e "${AZUL}${NEGRITO}====================================================${RESET}"
 echo ""
 
 # =============================================================
-# 1. JAVA
+# JAVA
 # =============================================================
 
-echo "[1/8] Verificando Java..."
+echo -e "${AZUL}[1/7]${RESET} Verificando Java..."
 
 if ! command -v java &>/dev/null; then
     echo ""
-    echo "ERRO: Java nao encontrado."
+    echo -e "${VERMELHO}Java nao encontrado.${RESET}"
     echo ""
     echo "Instale Java 21:"
-    echo "https://adoptium.net"
+    echo "https://adoptium.net/"
     echo ""
     exit 1
 fi
 
-echo "[OK] Java encontrado."
+echo -e "${VERDE}[OK]${RESET} Java encontrado."
 
 # =============================================================
-# 2. PASTAS
+# PASTAS
 # =============================================================
 
 echo ""
-echo "[2/8] Criando diretorios..."
+echo -e "${AZUL}[2/7]${RESET} Criando diretorios..."
 
 mkdir -p "$INSTALL_DIR"
 mkdir -p "$BIN_DIR"
 mkdir -p "$DESKTOP_DIR"
 
-echo "[OK] Diretorios criados."
+echo -e "${VERDE}[OK]${RESET} Diretorios criados."
 
 # =============================================================
-# 3. PARAR VERSAO ANTIGA
-# =============================================================
-
-echo ""
-echo "[3/8] Verificando instancia antiga..."
-
-if [ -f "$PID_FILE" ]; then
-
-    OLD_PID=$(cat "$PID_FILE")
-
-    if ps -p "$OLD_PID" > /dev/null 2>&1; then
-
-        echo "Parando versao anterior..."
-
-        kill "$OLD_PID" || true
-
-        sleep 2
-    fi
-
-    rm -f "$PID_FILE"
-fi
-
-pkill -f "controle-horas.jar" || true
-
-echo "[OK] Sistema antigo finalizado."
-
-# =============================================================
-# 4. DOWNLOAD JAR
+# REMOVE VERSAO ANTIGA
 # =============================================================
 
 echo ""
-echo "[4/8] Baixando sistema..."
+echo -e "${AZUL}[3/7]${RESET} Removendo versao antiga..."
 
-TMP_JAR="$INSTALL_DIR/controle-horas-new.jar"
+rm -f "$JAR_LOCAL"
+
+echo -e "${VERDE}[OK]${RESET} Versao antiga removida."
+
+# =============================================================
+# DOWNLOAD JAR
+# =============================================================
+
+echo ""
+echo -e "${AZUL}[4/7]${RESET} Baixando sistema..."
+
+DOWNLOAD_OK=false
 
 if command -v wget &>/dev/null; then
-    wget -O "$TMP_JAR" "$JAR_URL"
-else
-    curl -L -o "$TMP_JAR" "$JAR_URL"
+
+    wget \
+        --no-cache \
+        --no-cookies \
+        -O "$JAR_LOCAL" \
+        "$JAR_URL"
+
+    DOWNLOAD_OK=true
+
+elif command -v curl &>/dev/null; then
+
+    curl \
+        -L \
+        -H 'Cache-Control: no-cache, no-store' \
+        -o "$JAR_LOCAL" \
+        "$JAR_URL"
+
+    DOWNLOAD_OK=true
 fi
 
-if [ ! -f "$TMP_JAR" ]; then
-    echo ""
-    echo "ERRO: Falha ao baixar JAR."
+if [ "$DOWNLOAD_OK" = false ]; then
+    echo -e "${VERMELHO}Nem wget nem curl encontrados.${RESET}"
     exit 1
 fi
 
-if [ ! -s "$TMP_JAR" ]; then
+if [ ! -f "$JAR_LOCAL" ]; then
     echo ""
-    echo "ERRO: JAR vazio."
+    echo -e "${VERMELHO}Falha ao baixar o sistema.${RESET}"
     exit 1
 fi
 
-mv -f "$TMP_JAR" "$JAR_LOCAL"
+if [ ! -s "$JAR_LOCAL" ]; then
+    echo ""
+    echo -e "${VERMELHO}Arquivo baixado esta vazio.${RESET}"
+    exit 1
+fi
 
-echo "[OK] Sistema atualizado."
+echo -e "${VERDE}[OK]${RESET} Sistema atualizado."
 
 # =============================================================
-# 5. DOWNLOAD ICONE
+# ICONE
 # =============================================================
 
 echo ""
-echo "[5/8] Baixando icone..."
+echo -e "${AZUL}[5/7]${RESET} Baixando icone..."
 
 if command -v wget &>/dev/null; then
-    wget -O "$ICON_LOCAL" "$ICON_URL" || true
+    wget -q -O "$ICON_LOCAL" "$ICON_URL" || true
 else
     curl -L -o "$ICON_LOCAL" "$ICON_URL" || true
 fi
 
-if [ -f "$ICON_LOCAL" ]; then
-    echo "[OK] Icone atualizado."
-else
-    echo "[AVISO] Icone nao encontrado."
-fi
+echo -e "${VERDE}[OK]${RESET} Icone atualizado."
 
 # =============================================================
-# 6. SCRIPT EXECUCAO
+# LAUNCHER
 # =============================================================
 
 echo ""
-echo "[6/8] Criando launcher..."
+echo -e "${AZUL}[6/7]${RESET} Criando launcher..."
 
-cat > "$BIN_DIR/controle-horas" << SCRIPT
+cat > "$BIN_DIR/controle-horas" << EOF
 #!/bin/bash
-
-APP_DIR="$INSTALL_DIR"
-PID_FILE="\$APP_DIR/app.pid"
-
-nohup java -jar "\$APP_DIR/controle-horas.jar" > "\$APP_DIR/app.log" 2>&1 &
-
-echo \$! > "\$PID_FILE"
-SCRIPT
+java -jar "$JAR_LOCAL"
+EOF
 
 chmod +x "$BIN_DIR/controle-horas"
 
-echo "[OK] Launcher criado."
+echo -e "${VERDE}[OK]${RESET} Launcher criado."
 
 # =============================================================
-# 7. MENU
+# MENU
 # =============================================================
 
 echo ""
-echo "[7/8] Criando menu..."
+echo -e "${AZUL}[7/7]${RESET} Criando atalho..."
 
-cat > "$DESKTOP_DIR/controle-horas.desktop" << DESKTOP
+cat > "$DESKTOP_DIR/controle-horas.desktop" << EOF
 [Desktop Entry]
 Version=1.0
 Type=Application
@@ -179,81 +183,33 @@ Icon=$ICON_LOCAL
 Terminal=false
 Categories=Office;
 StartupNotify=true
-DESKTOP
+EOF
 
 chmod +x "$DESKTOP_DIR/controle-horas.desktop"
 
-echo "[OK] Atalho criado."
-
-# =============================================================
-# 8. DESINSTALADOR
-# =============================================================
-
-echo ""
-echo "[8/8] Criando desinstalador..."
-
-cat > "$INSTALL_DIR/desinstalar.sh" << REMOVE
-#!/bin/bash
-
-echo ""
-echo "Desinstalando Controle de Horas..."
-echo ""
-
-PID_FILE="$INSTALL_DIR/app.pid"
-
-if [ -f "\$PID_FILE" ]; then
-
-    PID=\$(cat "\$PID_FILE")
-
-    kill \$PID 2>/dev/null || true
-
-    rm -f "\$PID_FILE"
+if command -v update-desktop-database &>/dev/null; then
+    update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true
 fi
 
-pkill -f "controle-horas.jar" || true
-
-rm -f "$BIN_DIR/controle-horas"
-
-rm -f "$DESKTOP_DIR/controle-horas.desktop"
-
-rm -rf "$INSTALL_DIR"
-
-echo ""
-echo "Sistema removido com sucesso."
-echo ""
-REMOVE
-
-chmod +x "$INSTALL_DIR/desinstalar.sh"
-
-echo "[OK] Desinstalador criado."
+echo -e "${VERDE}[OK]${RESET} Atalho criado."
 
 # =============================================================
 # FINAL
 # =============================================================
 
 echo ""
-echo "=================================================="
-echo "      Instalacao concluida com sucesso!"
-echo "=================================================="
+echo -e "${VERDE}${NEGRITO}====================================================${RESET}"
+echo -e "${VERDE}${NEGRITO}         INSTALACAO CONCLUIDA COM SUCESSO           ${RESET}"
+echo -e "${VERDE}${NEGRITO}====================================================${RESET}"
 echo ""
 
-echo "Sistema instalado em:"
-echo "  $INSTALL_DIR"
-
+echo "Execute com:"
 echo ""
-echo "Abrir:"
-echo "  Menu de aplicativos -> Controle de Horas"
-
-echo ""
-echo "Ou execute:"
 echo "  controle-horas"
-
 echo ""
+
 read -p "Abrir agora? [s/N]: " abrir
 
 if [[ "$abrir" =~ ^[Ss]$ ]]; then
-    nohup java -jar "$JAR_LOCAL" > "$INSTALL_DIR/app.log" 2>&1 &
-    echo $! > "$PID_FILE"
+    nohup java -jar "$JAR_LOCAL" >/dev/null 2>&1 &
 fi
-
-echo ""
